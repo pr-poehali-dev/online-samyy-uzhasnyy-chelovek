@@ -1,0 +1,18 @@
+CREATE TABLE rooms (
+  id SERIAL PRIMARY KEY,
+  code VARCHAR(6) UNIQUE NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE players (
+  id SERIAL PRIMARY KEY,
+  room_code VARCHAR(6) NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  avatar VARCHAR(50) NOT NULL,
+  score INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (room_code) REFERENCES rooms(code)
+);
+
+CREATE INDEX idx_players_room_code ON players(room_code);

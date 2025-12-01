@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ type Screen = 'home' | 'mode-select' | 'game-classic' | 'game-simple' | 'rules';
 type Player = { id: string; name: string; avatar: string; score: number };
 type GameMode = 'classic' | 'simple' | null;
 
+const API_URL = 'https://functions.poehali.dev/fb950795-3295-445d-9605-1e21f1ea6512';
 const AVATAR_COLORS = ['bg-purple-500', 'bg-pink-500', 'bg-orange-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500'];
 
 const CONDITIONS = [
@@ -44,30 +45,79 @@ export default function Index() {
     return AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
   };
 
-  const createRoom = () => {
+  const createRoom = async () => {
     if (!playerName.trim()) return;
-    const newPlayer: Player = {
-      id: '1',
-      name: playerName,
-      avatar: getRandomAvatar(),
-      score: 0
-    };
-    setPlayers([newPlayer]);
-    setRoomCode(generateRoomCode());
-    setScreen('mode-select');
+    const code = generateRoomCode();
+    const avatar = getRandomAvatar();
+    
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create', code })
+      });
+      
+      if (!response.ok) throw new Error('Failed to create room');
+      
+      const joinResponse = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'join', code, name: playerName, avatar })
+      });
+      
+      if (!joinResponse.ok) throw new Error('Failed to join room');
+      
+      setRoomCode(code);
+      await loadPlayers(code);
+      setScreen('mode-select');
+    } catch (error) {
+      console.error('Error creating room:', error);
+    }
   };
 
-  const joinRoom = () => {
+  const joinRoom = async () => {
     if (!playerName.trim() || !roomCode.trim()) return;
-    const newPlayer: Player = {
-      id: String(players.length + 1),
-      name: playerName,
-      avatar: getRandomAvatar(),
-      score: 0
-    };
-    setPlayers([...players, newPlayer]);
-    setScreen('mode-select');
+    const avatar = getRandomAvatar();
+    
+    try {
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'join', code: roomCode, name: playerName, avatar })
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        alert(data.error || 'Ошибка при присоединении к комнате');
+        return;
+      }
+      
+      await loadPlayers(roomCode);
+      setScreen('mode-select');
+    } catch (error) {
+      console.error('Error joining room:', error);
+      alert('Ошибка при присоединении к комнате');
+    }
   };
+  
+  const loadPlayers = async (code: string) => {
+    try {
+      const response = await fetch(`${API_URL}?code=${code}`);
+      if (!response.ok) throw new Error('Failed to load players');
+      
+      const data = await response.json();
+      setPlayers(data.players || []);
+    } catch (error) {
+      console.error('Error loading players:', error);
+    }
+  };
+  
+  useEffect(() => {
+    if (roomCode && (screen === 'mode-select' || screen === 'game-classic' || screen === 'game-simple')) {
+      const interval = setInterval(() => loadPlayers(roomCode), 3000);
+      return () => clearInterval(interval);
+    }
+  }, [roomCode, screen]);
 
   const selectMode = (mode: 'classic' | 'simple') => {
     setGameMode(mode);

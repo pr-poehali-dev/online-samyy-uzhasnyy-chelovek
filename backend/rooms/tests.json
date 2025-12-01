@@ -1,0 +1,42 @@
+{
+  "tests": [
+    {
+      "name": "Create room",
+      "method": "POST",
+      "body": {
+        "action": "create",
+        "code": "ABC123"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": true
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Join room",
+      "method": "POST",
+      "body": {
+        "action": "join",
+        "code": "ABC123",
+        "name": "Test Player",
+        "avatar": "bg-purple-500"
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "success": true
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Get players in room",
+      "method": "GET",
+      "path": "/?code=ABC123",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "players": []
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
