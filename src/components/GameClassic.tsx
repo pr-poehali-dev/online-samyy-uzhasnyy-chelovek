@@ -36,9 +36,10 @@ export default function GameClassic({ players: initialPlayers, roomCode, onBack,
   const [currentCondition, setCurrentCondition] = useState('');
   const [playerHands, setPlayerHands] = useState<Record<string, string[]>>({});
   const [playedCards, setPlayedCards] = useState<Record<string, string>>({});
-  const [gamePhase, setGamePhase] = useState<'draw' | 'play' | 'vote'>('draw');
+  const [gamePhase, setGamePhase] = useState<'draw' | 'play' | 'vote' | 'results'>('draw');
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
-  const [votedFor, setVotedFor] = useState<string | null>(null);
+  const [votedCardOwner, setVotedCardOwner] = useState<string | null>(null);
+  const [votedPerson, setVotedPerson] = useState<string | null>(null);
 
   const shuffleArray = <T,>(array: T[]): T[] => {
     const newArray = [...array];
@@ -78,20 +79,32 @@ export default function GameClassic({ players: initialPlayers, roomCode, onBack,
     }
   };
 
-  const voteForCard = (playerId: string) => {
-    setVotedFor(playerId);
+  const voteForBestCard = (playerId: string) => {
+    setVotedCardOwner(playerId);
+  };
+  
+  const voteForPerson = (playerId: string) => {
+    setVotedPerson(playerId);
   };
 
-  const finishRound = () => {
-    if (votedFor) {
-      setPlayers(prev => prev.map(p => 
-        p.id === votedFor ? { ...p, score: p.score + 1 } : p
-      ));
-    }
+  const finishVoting = () => {
+    if (!votedCardOwner || !votedPerson) return;
     
+    setPlayers(prev => prev.map(p => {
+      let newScore = p.score;
+      if (p.id === votedCardOwner) newScore += 1;
+      if (p.id === votedPerson) newScore += 2;
+      return { ...p, score: newScore };
+    }));
+    
+    setGamePhase('results');
+  };
+  
+  const nextRound = () => {
     setPlayedCards({});
     setSelectedCard(null);
-    setVotedFor(null);
+    setVotedCardOwner(null);
+    setVotedPerson(null);
     setGamePhase('draw');
   };
 
@@ -250,9 +263,9 @@ export default function GameClassic({ players: initialPlayers, roomCode, onBack,
             </CardContent>
           </Card>
 
-          <div className="bg-white rounded-2xl shadow-xl p-6 border-4 border-purple-300">
+          <div className="bg-white rounded-2xl shadow-xl p-6 border-4 border-pink-300">
             <h3 className="text-2xl font-black text-gray-800 mb-4 text-center">
-              🗳️ Голосуйте за самую смешную комбинацию!
+              🎴 Шаг 1: Выберите лучшую комбинацию (+1 очко)
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {players.map((player) => {
@@ -263,21 +276,13 @@ export default function GameClassic({ players: initialPlayers, roomCode, onBack,
                   <Card
                     key={player.id}
                     className={`cursor-pointer transition-all transform hover:scale-105 border-4 ${
-                      votedFor === player.id
-                        ? 'border-green-500 bg-gradient-to-br from-green-100 to-green-50'
+                      votedCardOwner === player.id
+                        ? 'border-pink-500 bg-gradient-to-br from-pink-100 to-pink-50'
                         : 'border-pink-300 hover:border-pink-400'
                     }`}
-                    onClick={() => voteForCard(player.id)}
+                    onClick={() => voteForBestCard(player.id)}
                   >
                     <CardContent className="p-6">
-                      <div className="flex items-center gap-3 mb-4">
-                        <Avatar className="h-10 w-10">
-                          <AvatarFallback className={`${player.avatar} text-white font-bold`}>
-                            {player.name[0].toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="font-bold text-lg">{player.name}</span>
-                      </div>
                       <div className="bg-pink-50 rounded-lg p-4 border-2 border-pink-200">
                         <p className="text-lg font-bold text-pink-700">{card}</p>
                       </div>
@@ -288,10 +293,40 @@ export default function GameClassic({ players: initialPlayers, roomCode, onBack,
             </div>
           </div>
 
-          {votedFor && (
+          {votedCardOwner && (
+            <div className="bg-white rounded-2xl shadow-xl p-6 border-4 border-green-300">
+              <h3 className="text-2xl font-black text-gray-800 mb-4 text-center">
+                😈 Шаг 2: Кто бы это сделал? (+2 очка)
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {players.map((player) => (
+                  <Card
+                    key={player.id}
+                    className={`cursor-pointer transition-all transform hover:scale-105 border-4 ${
+                      votedPerson === player.id
+                        ? 'border-green-500 bg-gradient-to-br from-green-100 to-green-50'
+                        : 'border-green-300 hover:border-green-400'
+                    }`}
+                    onClick={() => voteForPerson(player.id)}
+                  >
+                    <CardContent className="p-4 text-center">
+                      <Avatar className="h-16 w-16 mx-auto mb-2">
+                        <AvatarFallback className={`${player.avatar} text-white font-bold text-2xl`}>
+                          {player.name[0].toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <p className="font-bold text-sm">{player.name}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {votedCardOwner && votedPerson && (
             <div className="flex justify-center">
               <Button
-                onClick={finishRound}
+                onClick={finishVoting}
                 className="h-16 px-12 text-2xl font-black bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
               >
                 <Icon name="Trophy" className="mr-3" size={28} />
@@ -299,6 +334,95 @@ export default function GameClassic({ players: initialPlayers, roomCode, onBack,
               </Button>
             </div>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  if (gamePhase === 'results') {
+    const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+    const winner = sortedPlayers[0];
+    
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-100 via-pink-100 to-orange-100 p-4">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <Button onClick={onBack} variant="outline" className="border-2 border-purple-300">
+              <Icon name="Home" size={20} />
+            </Button>
+            <div className="bg-white px-6 py-3 rounded-xl shadow-lg border-2 border-purple-300">
+              <span className="text-sm text-gray-600 font-semibold">Код:</span>
+              <span className="ml-2 text-2xl font-black text-purple-600">{roomCode}</span>
+            </div>
+          </div>
+
+          <Card className="shadow-2xl border-4 border-yellow-400 bg-gradient-to-br from-yellow-100 to-orange-100">
+            <CardContent className="p-8 text-center">
+              <div className="text-7xl mb-4">🏆</div>
+              <h2 className="text-4xl font-black text-yellow-700 mb-2">Результаты раунда</h2>
+              <p className="text-xl text-gray-700">
+                Лучшая комбинация: <span className="font-bold text-pink-600">+1 очко</span><br/>
+                Самый ужасный человек: <span className="font-bold text-green-600">+2 очка</span>
+              </p>
+            </CardContent>
+          </Card>
+
+          <div className="bg-white rounded-2xl shadow-xl p-6 border-4 border-purple-300">
+            <h3 className="text-2xl font-black text-gray-800 mb-6 text-center">📊 Рейтинг игроков</h3>
+            <div className="space-y-4">
+              {sortedPlayers.map((player, index) => (
+                <div 
+                  key={player.id}
+                  className={`flex items-center justify-between p-4 rounded-xl border-4 ${
+                    index === 0 
+                      ? 'bg-gradient-to-r from-yellow-100 to-orange-100 border-yellow-400' 
+                      : 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className={`text-3xl font-black ${index === 0 ? 'text-yellow-600' : 'text-gray-400'}`}>
+                      {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`}
+                    </div>
+                    <Avatar className="h-14 w-14 border-2 border-white shadow-lg">
+                      <AvatarFallback className={`${player.avatar} text-white font-bold text-xl`}>
+                        {player.name[0].toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-xl font-bold text-gray-800">{player.name}</span>
+                  </div>
+                  <div className="text-3xl font-black text-purple-600">{player.score}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {winner && winner.score >= 10 && (
+            <Card className="shadow-2xl border-4 border-green-400 bg-gradient-to-br from-green-100 to-blue-100">
+              <CardContent className="p-8 text-center">
+                <div className="text-7xl mb-4">🎉</div>
+                <h2 className="text-4xl font-black text-green-700 mb-2">Победитель игры!</h2>
+                <div className="flex items-center justify-center gap-4 mt-4">
+                  <Avatar className="h-20 w-20 border-4 border-white shadow-lg">
+                    <AvatarFallback className={`${winner.avatar} text-white font-bold text-3xl`}>
+                      {winner.name[0].toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-3xl font-black text-gray-800">{winner.name}</span>
+                </div>
+                <p className="text-2xl font-bold text-gray-700 mt-4">{winner.score} очков</p>
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="flex justify-center gap-4">
+            <Button
+              onClick={nextRound}
+              className="h-16 px-12 text-2xl font-black bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+            >
+              <Icon name="Play" className="mr-3" size={28} />
+              Следующий раунд
+            </Button>
+          </div>
         </div>
       </div>
     );

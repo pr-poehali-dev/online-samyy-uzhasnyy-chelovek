@@ -36,6 +36,7 @@ export default function Index() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [gameMode, setGameMode] = useState<GameMode>(null);
   const [showRulesDialog, setShowRulesDialog] = useState(false);
+  const [roomError, setRoomError] = useState('');
 
   const generateRoomCode = () => {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -77,6 +78,7 @@ export default function Index() {
 
   const joinRoom = async () => {
     if (!playerName.trim() || !roomCode.trim()) return;
+    setRoomError('');
     const avatar = getRandomAvatar();
     
     try {
@@ -88,7 +90,7 @@ export default function Index() {
       
       if (!response.ok) {
         const data = await response.json();
-        alert(data.error || 'Ошибка при присоединении к комнате');
+        setRoomError(data.error || 'Комната не найдена');
         return;
       }
       
@@ -96,7 +98,7 @@ export default function Index() {
       setScreen('mode-select');
     } catch (error) {
       console.error('Error joining room:', error);
-      alert('Ошибка при присоединении к комнате');
+      setRoomError('Комната не найдена');
     }
   };
   
@@ -167,13 +169,21 @@ export default function Index() {
               </div>
 
               <div className="space-y-4">
-                <Input
-                  placeholder="Код комнаты"
-                  value={roomCode}
-                  onChange={(e) => setRoomCode(e.target.value.toUpperCase())}
-                  className="text-lg h-14 border-2 border-purple-200 focus:border-purple-500"
-                  maxLength={6}
-                />
+                <div>
+                  <Input
+                    placeholder="Код комнаты"
+                    value={roomCode}
+                    onChange={(e) => {
+                      setRoomCode(e.target.value.toUpperCase());
+                      setRoomError('');
+                    }}
+                    className="text-lg h-14 border-2 border-purple-200 focus:border-purple-500"
+                    maxLength={6}
+                  />
+                  {roomError && (
+                    <p className="text-sm text-red-500 mt-2 ml-2">{roomError}</p>
+                  )}
+                </div>
                 
                 <Button
                   onClick={joinRoom}
